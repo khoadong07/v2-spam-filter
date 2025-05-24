@@ -1,5 +1,4 @@
 .venv/
 .env
-vncorenlp/
 vncorenlp.sh
 __pycache__/
