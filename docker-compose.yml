@@ -1,0 +1,18 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: v2-spam-filter
+    ports:
+      - "8102:8000"
+    environment:
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Ho_Chi_Minh
+    env_file:
+      - .env
+    volumes:
+      - .:/code
+    restart: always

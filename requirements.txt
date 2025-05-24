@@ -1,0 +1,9 @@
+python-dotenv
+pandas
+torch
+transformers
+langdetect
+tqdm
+vncorenlp
+uvicorn
+fastapi

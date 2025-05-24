@@ -1,0 +1,307 @@
+import pandas as pd
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from langdetect import detect, DetectorFactory
+from torch.utils.data import DataLoader, Dataset
+import logging
+from tqdm import tqdm
+from vncorenlp import VnCoreNLP
+import re
+import json
+from typing import List, Dict, Union, Set
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+# Configuration
+class Config:
+    STOPWORDS_PATH = os.getenv("STOPWORDS_PATH", "")
+    MODEL_PATH = os.getenv("MODEL_PATH", "")
+    TOKENIZER_NAME = os.getenv("TOKENIZER_NAME", "")
+    MAX_LENGTH: int = 100
+    DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    BATCH_SIZE: int = 16
+
+    #read json from static/site_id_filter/finance.json
+    FILTER_SITE_IDS: List[str] = json.load(open('static/site_id_filter/finance.json'))
+
+    TRUSTED_SITES: List[str] = ['google.com', 'play.google.com', 'apps.apple.com']
+
+# Initialize logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+DetectorFactory.seed = 0
+
+# Initialize VnCoreNLP
+vncorenlp = VnCoreNLP("vncorenlp/VnCoreNLP-1.1.1.jar", annotators="wseg", max_heap_size='-Xmx500m')
+
+# Load stopwords
+with open(Config.STOPWORDS_PATH, "r", encoding='utf-8') as f:
+    stopwords: Set[str] = set(line.strip() for line in f)
+
+class TextPreprocessor:
+    """Handles text preprocessing tasks like stopword removal, emoji removal, and tokenization."""
+    
+    @staticmethod
+    def remove_emojis(text: str) -> str:
+        """Remove emojis from text using regex."""
+        emoji_pattern = re.compile(
+            "["
+            u"\U0001F600-\U0001F64F"  # emoticons
+            u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+            u"\U0001F680-\U0001F6FF"  # transport & map symbols
+            u"\U0001F1E0-\U0001F1FF"  # flags
+            "]+", flags=re.UNICODE
+        )
+        return emoji_pattern.sub('', text)
+
+    @staticmethod
+    def remove_stopwords(text: str, stopwords: Set[str]) -> str:
+        """Remove stopwords from text."""
+        return ' '.join(word for word in text.split() if word not in stopwords)
+
+    @staticmethod
+    def tokenize_vietnamese(text: str) -> str:
+        """Tokenize Vietnamese text using VnCoreNLP."""
+        return " ".join([" ".join(sentence) for sentence in vncorenlp.tokenize(text)])
+
+    @classmethod
+    def preprocess(cls, text: str, tokenized: bool = True, lowercased: bool = True) -> str:
+        """Preprocess text with stopword removal, emoji removal, and optional tokenization."""
+        if not isinstance(text, str) or not text.strip():
+            return ""
+        text = cls.remove_stopwords(text, stopwords)
+        text = cls.remove_emojis(text)
+        text = text.lower() if lowercased else text
+        if tokenized:
+            text = cls.tokenize_vietnamese(text)
+        return text
+
+    @classmethod
+    def preprocess_with_language_detection(cls, text: str, tokenized: bool = True, lowercased: bool = True) -> tuple[str, str]:
+        """Preprocess text and detect language."""
+        if not isinstance(text, str) or not text.strip():
+            return "", "unknown"
+        
+        try:
+            language = detect(text)
+        except:
+            language = "unknown"
+
+        if language == 'vi':
+            text = cls.preprocess(text, tokenized=tokenized, lowercased=lowercased)
+        else:
+            text = cls.remove_emojis(text)
+            text = text.lower() if lowercased else text
+        return text, language
+
+class SpamClassifierModel:
+    """Manages the spam classification model and predictions."""
+    
+    def __init__(self):
+        """Initialize model and tokenizer."""
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(Config.TOKENIZER_NAME, use_fast=True)
+            self.model = AutoModelForSequenceClassification.from_pretrained(Config.MODEL_PATH).to(Config.DEVICE)
+            self.model.eval()
+            logger.info("Model and tokenizer loaded successfully.")
+        except Exception as e:
+            logger.error(f"Failed to load model or tokenizer: {e}")
+            raise
+
+    def predict(self, texts: Union[str, List[str]]) -> List[Dict]:
+        """Predict spam probability for a list of texts."""
+        if isinstance(texts, str):
+            texts = [texts]
+
+        processed_texts, languages = [], []
+        for text in tqdm(texts, desc="Preprocessing texts", disable=True):
+            processed_text, lang = TextPreprocessor.preprocess_with_language_detection(text)
+            processed_texts.append(processed_text)
+            languages.append(lang)
+
+        results = []
+        for text, lang in zip(processed_texts, languages):
+            if lang != 'vi':
+                results.append({
+                    "label": "spam",
+                    "probability": 1.0,
+                    "all_probabilities": {"not_spam": 0.0, "spam": 1.0},
+                    "language": lang
+                })
+
+        predict_texts = [text for text, lang in zip(processed_texts, languages) if lang == 'vi']
+        predict_indices = [i for i, lang in enumerate(languages) if lang == 'vi']
+
+        if not predict_texts:
+            return results
+
+        dataset = TextDataset(predict_texts)
+        dataloader = DataLoader(dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
+        labels = ["not_spam", "spam"]
+
+        predict_results = []
+        with torch.no_grad():
+            for batch_texts in dataloader:
+                encodings = self.tokenizer(
+                    batch_texts,
+                    truncation=True,
+                    padding=True,
+                    max_length=Config.MAX_LENGTH,
+                    return_tensors="pt"
+                ).to(Config.DEVICE)
+
+                outputs = self.model(**encodings)
+                logits = outputs.logits
+                probabilities = torch.softmax(logits, dim=-1)
+                predictions = torch.argmax(logits, dim=-1)
+
+                for pred, prob in zip(predictions, probabilities):
+                    predict_results.append({
+                        "label": labels[pred.item()],
+                        "probability": prob[pred.item()].item(),
+                        "all_probabilities": {
+                            labels[0]: prob[0].item(),
+                            labels[1]: prob[1].item()
+                        },
+                        "language": "vi"
+                    })
+
+        for idx, result in zip(predict_indices, predict_results):
+            results.insert(idx, result)
+
+        return results
+
+class TextDataset(Dataset):
+    """Dataset class for text data."""
+    def __init__(self, texts: List[str]):
+        self.texts = texts
+
+    def __len__(self) -> int:
+        return len(self.texts)
+
+    def __getitem__(self, idx: int) -> str:
+        return self.texts[idx]
+
+class SpamClassifier:
+    """Main class for spam classification from JSON data."""
+    
+    def __init__(self):
+        self.model = SpamClassifierModel()
+        self.required_columns = ['Title', 'Content', 'Description', 'Type', 'Topic', 'SiteName', 'SiteId', 'Sentiment']
+
+    def classify_spam(self, json_data: Union[Dict, List[Dict]]) -> Union[Dict, List[Dict]]:
+        """
+        Classify spam from JSON data.
+
+        Args:
+            json_data: dict or list of dicts with required fields
+            batch_size: int, batch size for prediction
+
+        Returns:
+            dict or list of dicts with original data plus 'spam' and 'lang' fields
+        """
+        try:
+            is_single = isinstance(json_data, dict)
+            if is_single:
+                json_data = [json_data]
+
+            df = self._prepare_dataframe(json_data)
+            df = self._apply_rules(df)
+            df = self._predict_spam(df)
+            df = self._finalize_language(df)
+
+            result = df.drop(columns=['Combined_Text']).to_dict('records')
+            return result[0] if is_single else result
+
+        except Exception as e:
+            logger.error(f"Error processing data: {e}")
+            raise
+
+    def _prepare_dataframe(self, json_data: List[Dict]) -> pd.DataFrame:
+        """Prepare DataFrame from JSON data."""
+        df = pd.DataFrame(json_data)
+        df = df.rename(columns={
+                'id': 'Id',
+                'title': 'Title',
+                'content': 'Content',
+                'description': 'Description',
+                'type': 'Type',
+                'topic': 'Topic',
+                'site_name': 'SiteName',
+                'site_id': 'SiteId',
+                'sentiment': 'Sentiment'
+            })
+            
+        if not all(col in df.columns for col in self.required_columns):
+            missing_cols = [col for col in self.required_columns if col not in df.columns]
+            raise ValueError(f"Missing columns in input data: {missing_cols}")
+
+        df['Combined_Text'] = df[['Title', 'Content', 'Description']].fillna('').agg(' '.join, axis=1)
+        df = df[df['Combined_Text'].str.strip() != '']
+        df['spam'] = True  # Default to spam
+        df['lang'] = 'vi'  # Default language
+        return df
+
+    def _apply_rules(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply rule-based spam filtering."""
+        # Rule 1: Type is tiktokComment -> not_spam
+        tiktok_mask = df['Type'].str.lower() == 'tiktokcomment'
+        df.loc[tiktok_mask, 'spam'] = False
+        df.loc[tiktok_mask, 'lang'] = df.loc[tiktok_mask, 'Combined_Text'].apply(
+            lambda x: detect_language(x) if isinstance(x, str) and x.strip() else 'unknown'
+        )
+
+        # Rule 2: SiteId in filter_site_id -> not_spam
+        site_mask = df['SiteId'].isin(Config.FILTER_SITE_IDS)
+        df.loc[site_mask, 'spam'] = False
+        df.loc[site_mask, 'lang'] = df.loc[site_mask, 'Combined_Text'].apply(
+            lambda x: detect_language(x) if isinstance(x, str) and x.strip() else 'unknown'
+        )
+
+        # Rule 3: Type is newsTopic -> detect language only
+        news_mask = df['Type'].str.lower() == 'newstopic'
+        df.loc[news_mask, 'lang'] = df.loc[news_mask, 'Combined_Text'].apply(
+            lambda x: detect_language(x) if isinstance(x, str) and x.strip() else 'unknown'
+        )
+
+        # Rule 4: SiteName is trusted -> not_spam
+        site_mask = df['SiteName'].str.lower().isin(Config.TRUSTED_SITES)
+        df.loc[site_mask, 'spam'] = False
+        df.loc[site_mask, 'lang'] = 'vi'
+
+        # Rule 5: Sentiment Negative or Positive -> not_spam
+        sentiment_mask = df['Sentiment'].str.lower().isin(['negative', 'positive'])
+        df.loc[sentiment_mask, 'spam'] = False
+        df.loc[sentiment_mask, 'lang'] = df.loc[sentiment_mask, 'Combined_Text'].apply(
+            lambda x: detect_language(x) if isinstance(x, str) and x.strip() else 'unknown'
+        )
+
+        return df
+
+    def _predict_spam(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Predict spam for remaining texts using the model."""
+        predict_mask = (df['spam'] == True)
+        texts_to_predict = df.loc[predict_mask, 'Combined_Text'].tolist()
+
+        if texts_to_predict:
+            predictions = self.model.predict(texts_to_predict)
+            predict_indices = df[predict_mask].index
+            for idx, pred in zip(predict_indices, predictions):
+                df.at[idx, 'spam'] = pred['label'] == 'spam'
+                df.at[idx, 'lang'] = 'vi' if pred['language'] == 'vi' else 'na'
+        return df
+
+    def _finalize_language(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Finalize language labels."""
+        df.loc[df['lang'] == 'vi', 'lang'] = 'vietnamese'
+        df.loc[df['lang'] != 'vietnamese', 'lang'] = 'non_vietnamese'
+        return df
+
+def detect_language(text: str) -> str:
+    """Detect language of the input text."""
+    try:
+        return detect(text)
+    except:
+        return "unknown"
+
