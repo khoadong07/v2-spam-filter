@@ -86,6 +86,18 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
             classifier = SpamClassifier("ewallet")
         elif category == "healthcare_insurance":
             classifier = SpamClassifier("healthcare_insurance")
+        elif category == "ecommerce":
+            classifier = SpamClassifier("ecommerce")
+        elif category == "education":
+            classifier = SpamClassifier("education")
+        elif category == "logistic_delivery":
+            classifier = SpamClassifier("logistic_delivery")
+        elif category == "energy_fuels":
+            classifier = SpamClassifier("energy_fuels")
+        elif category == "fnb":
+            classifier = SpamClassifier("fnb")
+        elif category == "investment":
+            classifier = SpamClassifier("investment")
         else:
             raise HTTPException(status_code=400, detail="Invalid category")
             
