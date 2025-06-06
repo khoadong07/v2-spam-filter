@@ -7,3 +7,5 @@ tqdm
 vncorenlp
 uvicorn
 fastapi
+streamlit
+openpyxl

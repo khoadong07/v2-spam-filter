@@ -74,12 +74,19 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
     """Cached classification function."""
     try:
         start_time = time.time()
-        classifier = SpamClassifier()
         
         # Parse input data
         input_data = json.loads(request_data)
         
-        if category != "finance":
+        if category == "finance":
+            classifier = SpamClassifier("finance")
+        elif category == "real_estate":
+            classifier = SpamClassifier("real_estate")
+        elif category == "ewallet":
+            classifier = SpamClassifier("ewallet")
+        elif category == "healthcare_insurance":
+            classifier = SpamClassifier("healthcare_insurance")
+        else:
             raise HTTPException(status_code=400, detail="Invalid category")
             
         # Process classification

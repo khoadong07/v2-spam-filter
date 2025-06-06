@@ -11,20 +11,76 @@ import json
 from typing import List, Dict, Union, Set
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
-# Configuration
+# Configuration for multiple categories
 class Config:
-    STOPWORDS_PATH = os.getenv("STOPWORDS_PATH", "")
-    MODEL_PATH = os.getenv("MODEL_PATH", "")
-    TOKENIZER_NAME = os.getenv("TOKENIZER_NAME", "")
     MAX_LENGTH: int = 100
     DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     BATCH_SIZE: int = 16
-
-    #read json from static/site_id_filter/finance.json
-    FILTER_SITE_IDS: List[str] = json.load(open('static/site_id_filter/finance.json'))
-
+    CATEGORIES: Dict[str, Dict] = {
+        "finance": {
+            "MODEL_PATH": os.getenv("FINANCE", ""),
+            "TOKENIZER_NAME": os.getenv("FINANCE", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/finance.json')) if os.path.exists('static/site_id_filter/finance.json') else [],
+        },
+        "real_estate": {
+            "MODEL_PATH": os.getenv("REAL_ESTATE", ""),
+            "TOKENIZER_NAME": os.getenv("REAL_ESTATE", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/real_estate.json')) if os.path.exists('static/site_id_filter/real_estate.json') else [],
+        },
+        "ewallet": {
+            "MODEL_PATH": os.getenv("EWALLET", ""),
+            "TOKENIZER_NAME": os.getenv("EWALLET", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/ewallet.json')) if os.path.exists('static/site_id_filter/ewallet.json') else [],
+        },
+        "healthcare_insurance": {
+            "MODEL_PATH": os.getenv("HEALTHCARE_INSURANCE", ""),
+            "TOKENIZER_NAME": os.getenv("HEALTHCARE_INSURANCE", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/healthcare_insurance.json')) if os.path.exists('static/site_id_filter/healthcare_insurance.json') else [],
+        },
+        "ecommerce": {
+            "MODEL_PATH": os.getenv("ECOMMERCE", ""),
+            "TOKENIZER_NAME": os.getenv("ECOMMERCE", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/ecommerce.json')) if os.path.exists('static/site_id_filter/ecommerce.json') else [],
+        },
+        "education": {
+            "MODEL_PATH": os.getenv("EDUCATION", ""),
+            "TOKENIZER_NAME": os.getenv("EDUCATION", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/education.json')) if os.path.exists('static/site_id_filter/education.json') else [],
+        },
+        "logistic_delivery": {
+            "MODEL_PATH": os.getenv("LOGISTIC_DELIVERY", ""),
+            "TOKENIZER_NAME": os.getenv("LOGISTIC_DELIVERY", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/logistic_delivery.json')) if os.path.exists('static/site_id_filter/logistic_delivery.json') else [],
+        },
+        "energy_fuels": {
+            "MODEL_PATH": os.getenv("ENERGY_FUELS", ""),
+            "TOKENIZER_NAME": os.getenv("ENERGY_FUELS", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/energy_fuels.json')) if os.path.exists('static/site_id_filter/energy_fuels.json') else [],
+        },
+        "fnb": {
+            "MODEL_PATH": os.getenv("FNB", ""),
+            "TOKENIZER_NAME": os.getenv("FNB", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/fnb.json')) if os.path.exists('static/site_id_filter/fnb.json') else [],
+        },
+        "investment": {
+            "MODEL_PATH": os.getenv("INVESTMENT", ""),
+            "TOKENIZER_NAME": os.getenv("INVESTMENT", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/investment.json')) if os.path.exists('static/site_id_filter/investment.json') else [],
+        }
+    }
     TRUSTED_SITES: List[str] = ['google.com', 'play.google.com', 'apps.apple.com']
 
 # Initialize logging
@@ -34,10 +90,6 @@ DetectorFactory.seed = 0
 
 # Initialize VnCoreNLP
 vncorenlp = VnCoreNLP("vncorenlp/VnCoreNLP-1.1.1.jar", annotators="wseg", max_heap_size='-Xmx500m')
-
-# Load stopwords
-with open(Config.STOPWORDS_PATH, "r", encoding='utf-8') as f:
-    stopwords: Set[str] = set(line.strip() for line in f)
 
 class TextPreprocessor:
     """Handles text preprocessing tasks like stopword removal, emoji removal, and tokenization."""
@@ -66,7 +118,7 @@ class TextPreprocessor:
         return " ".join([" ".join(sentence) for sentence in vncorenlp.tokenize(text)])
 
     @classmethod
-    def preprocess(cls, text: str, tokenized: bool = True, lowercased: bool = True) -> str:
+    def preprocess(cls, text: str, stopwords: Set[str], tokenized: bool = True, lowercased: bool = True) -> str:
         """Preprocess text with stopword removal, emoji removal, and optional tokenization."""
         if not isinstance(text, str) or not text.strip():
             return ""
@@ -78,7 +130,7 @@ class TextPreprocessor:
         return text
 
     @classmethod
-    def preprocess_with_language_detection(cls, text: str, tokenized: bool = True, lowercased: bool = True) -> tuple[str, str]:
+    def preprocess_with_language_detection(cls, text: str, stopwords: Set[str], tokenized: bool = True, lowercased: bool = True) -> tuple[str, str]:
         """Preprocess text and detect language."""
         if not isinstance(text, str) or not text.strip():
             return "", "unknown"
@@ -89,24 +141,32 @@ class TextPreprocessor:
             language = "unknown"
 
         if language == 'vi':
-            text = cls.preprocess(text, tokenized=tokenized, lowercased=lowercased)
+            text = cls.preprocess(text, stopwords, tokenized=tokenized, lowercased=lowercased)
         else:
             text = cls.remove_emojis(text)
             text = text.lower() if lowercased else text
         return text, language
 
 class SpamClassifierModel:
-    """Manages the spam classification model and predictions."""
+    """Manages the spam classification model and predictions for a specific category."""
     
-    def __init__(self):
-        """Initialize model and tokenizer."""
+    def __init__(self, category: str):
+        """Initialize model and tokenizer for the given category."""
+        if category not in Config.CATEGORIES:
+            raise ValueError(f"Category {category} not found in configuration.")
+        
+        self.category = category
+        self.config = Config.CATEGORIES[category]
+        
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(Config.TOKENIZER_NAME, use_fast=True)
-            self.model = AutoModelForSequenceClassification.from_pretrained(Config.MODEL_PATH).to(Config.DEVICE)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.config["TOKENIZER_NAME"], use_fast=True)
+            self.model = AutoModelForSequenceClassification.from_pretrained(self.config["MODEL_PATH"]).to(Config.DEVICE)
             self.model.eval()
-            logger.info("Model and tokenizer loaded successfully.")
+            with open(self.config["STOPWORDS_PATH"], "r", encoding='utf-8') as f:
+                self.stopwords = set(line.strip() for line in f)
+            logger.info(f"Model, tokenizer, and stopwords for category {category} loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load model or tokenizer: {e}")
+            logger.error(f"Failed to load model, tokenizer, or stopwords for category {category}: {e}")
             raise
 
     def predict(self, texts: Union[str, List[str]]) -> List[Dict]:
@@ -116,7 +176,7 @@ class SpamClassifierModel:
 
         processed_texts, languages = [], []
         for text in tqdm(texts, desc="Preprocessing texts", disable=True):
-            processed_text, lang = TextPreprocessor.preprocess_with_language_detection(text)
+            processed_text, lang = TextPreprocessor.preprocess_with_language_detection(text, self.stopwords)
             processed_texts.append(processed_text)
             languages.append(lang)
 
@@ -184,10 +244,11 @@ class TextDataset(Dataset):
         return self.texts[idx]
 
 class SpamClassifier:
-    """Main class for spam classification from JSON data."""
+    """Main class for spam classification from JSON data with multi-category support."""
     
-    def __init__(self):
-        self.model = SpamClassifierModel()
+    def __init__(self, category: str):
+        self.model = SpamClassifierModel(category)
+        self.category = category
         self.required_columns = ['Title', 'Content', 'Description', 'Type', 'Topic', 'SiteName', 'SiteId', 'Sentiment']
 
     def classify_spam(self, json_data: Union[Dict, List[Dict]]) -> Union[Dict, List[Dict]]:
@@ -196,7 +257,6 @@ class SpamClassifier:
 
         Args:
             json_data: dict or list of dicts with required fields
-            batch_size: int, batch size for prediction
 
         Returns:
             dict or list of dicts with original data plus 'spam' and 'lang' fields
@@ -215,24 +275,24 @@ class SpamClassifier:
             return result[0] if is_single else result
 
         except Exception as e:
-            logger.error(f"Error processing data: {e}")
+            logger.error(f"Error processing data for category {self.category}: {e}")
             raise
 
     def _prepare_dataframe(self, json_data: List[Dict]) -> pd.DataFrame:
         """Prepare DataFrame from JSON data."""
         df = pd.DataFrame(json_data)
         df = df.rename(columns={
-                'id': 'Id',
-                'title': 'Title',
-                'content': 'Content',
-                'description': 'Description',
-                'type': 'Type',
-                'topic': 'Topic',
-                'site_name': 'SiteName',
-                'site_id': 'SiteId',
-                'sentiment': 'Sentiment'
-            })
-            
+            'id': 'Id',
+            'title': 'Title',
+            'content': 'Content',
+            'description': 'Description',
+            'type': 'Type',
+            'topic': 'Topic',
+            'site_name': 'SiteName',
+            'site_id': 'SiteId',
+            'sentiment': 'Sentiment'
+        })
+        
         if not all(col in df.columns for col in self.required_columns):
             missing_cols = [col for col in self.required_columns if col not in df.columns]
             raise ValueError(f"Missing columns in input data: {missing_cols}")
@@ -253,7 +313,7 @@ class SpamClassifier:
         )
 
         # Rule 2: SiteId in filter_site_id -> not_spam
-        site_mask = df['SiteId'].isin(Config.FILTER_SITE_IDS)
+        site_mask = df['SiteId'].isin(Config.CATEGORIES[self.category]["FILTER_SITE_IDS"])
         df.loc[site_mask, 'spam'] = False
         df.loc[site_mask, 'lang'] = df.loc[site_mask, 'Combined_Text'].apply(
             lambda x: detect_language(x) if isinstance(x, str) and x.strip() else 'unknown'
@@ -304,4 +364,3 @@ def detect_language(text: str) -> str:
         return detect(text)
     except:
         return "unknown"
-
