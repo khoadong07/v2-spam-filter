@@ -79,7 +79,26 @@ class Config:
             "TOKENIZER_NAME": os.getenv("INVESTMENT", ""),
             "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/investment.json')) if os.path.exists('static/site_id_filter/investment.json') else [],
+        },
+        "fmcg": {
+            "MODEL_PATH": os.getenv("FMCG", ""),
+            "TOKENIZER_NAME": os.getenv("FMCG", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/fmcg.json')) if os.path.exists('static/site_id_filter/fmcg.json') else [],
+        },
+        "retail": {
+            "MODEL_PATH": os.getenv("RETAIL", ""),
+            "TOKENIZER_NAME": os.getenv("RETAIL", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/retail.json')) if os.path.exists('static/site_id_filter/retail.json') else [],
+        },
+        "technology_motorbike_food": {
+            "MODEL_PATH": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", ""),
+            "TOKENIZER_NAME": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", ""),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "FILTER_SITE_IDS": json.load(open('static/site_id_filter/technology_motorbike_food.json')) if os.path.exists('static/site_id_filter/technology_motorbike_food.json') else [],
         }
+
     }
     TRUSTED_SITES: List[str] = ['google.com', 'play.google.com', 'apps.apple.com']
 

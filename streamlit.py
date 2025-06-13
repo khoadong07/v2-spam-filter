@@ -15,7 +15,7 @@ st.title("Spam Classification Interface (Batch + Progress)")
 # --- Constants ---
 API_URL = "http://0.0.0.0:8102/classify"
 REQUIRED_COLUMNS = ['Id', 'Topic', 'Title', 'Content', 'Description', 'Sentiment', 'SiteName', 'SiteId', 'Type']
-CATEGORY_OPTIONS = ["finance", "real_estate", "ewallet", "healthcare_insurance", "ecommerce", "education", "logistic_delivery", "energy_fuels", "fnb", "investment"]
+CATEGORY_OPTIONS = ["finance", "real_estate", "ewallet", "healthcare_insurance", "ecommerce", "education", "logistic_delivery", "energy_fuels", "fnb", "investment", "fmcg", "retail", "technology_motorbike_food"]
 BATCH_SIZE = 10
 MAX_WORKERS = 10
 
