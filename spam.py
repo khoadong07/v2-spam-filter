@@ -19,86 +19,86 @@ class Config:
     MAX_LENGTH: int = 100
     DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     BATCH_SIZE: int = 16
+    CACHE_DIR: str = os.getenv("MODEL_CACHE_DIR", "./model_cache")  # Default cache directory
     CATEGORIES: Dict[str, Dict] = {
         "finance": {
-            "MODEL_PATH": os.getenv("FINANCE", ""),
-            "TOKENIZER_NAME": os.getenv("FINANCE", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("FINANCE", "Khoa/kompa-spam-filter-finance-0625"),
+            "TOKENIZER_NAME": os.getenv("FINANCE", "Khoa/kompa-spam-filter-finance-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/finance.json')) if os.path.exists('static/site_id_filter/finance.json') else [],
         },
         "real_estate": {
-            "MODEL_PATH": os.getenv("REAL_ESTATE", ""),
-            "TOKENIZER_NAME": os.getenv("REAL_ESTATE", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("REAL_ESTATE", "Khoa/kompa-spam-filter-real-estate-0625"),
+            "TOKENIZER_NAME": os.getenv("REAL_ESTATE", "Khoa/kompa-spam-filter-real-estate-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/real_estate.json')) if os.path.exists('static/site_id_filter/real_estate.json') else [],
         },
         "ewallet": {
-            "MODEL_PATH": os.getenv("EWALLET", ""),
-            "TOKENIZER_NAME": os.getenv("EWALLET", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("EWALLET", "Khoa/kompa-spam-filter-ewallet-0625"),
+            "TOKENIZER_NAME": os.getenv("EWALLET", "Khoa/kompa-spam-filter-ewallet-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/ewallet.json')) if os.path.exists('static/site_id_filter/ewallet.json') else [],
         },
         "healthcare_insurance": {
-            "MODEL_PATH": os.getenv("HEALTHCARE_INSURANCE", ""),
-            "TOKENIZER_NAME": os.getenv("HEALTHCARE_INSURANCE", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("HEALTHCARE_INSURANCE", "Khoa/kompa-spam-filter-healthcare-insurance-0625"),
+            "TOKENIZER_NAME": os.getenv("HEALTHCARE_INSURANCE", "Khoa/kompa-spam-filter-healthcare-insurance-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/healthcare_insurance.json')) if os.path.exists('static/site_id_filter/healthcare_insurance.json') else [],
         },
         "ecommerce": {
-            "MODEL_PATH": os.getenv("ECOMMERCE", ""),
-            "TOKENIZER_NAME": os.getenv("ECOMMERCE", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("ECOMMERCE", "Khoa/kompa-spam-filter-ecommerce-0625"),
+            "TOKENIZER_NAME": os.getenv("ECOMMERCE", "Khoa/kompa-spam-filter-ecommerce-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/ecommerce.json')) if os.path.exists('static/site_id_filter/ecommerce.json') else [],
         },
         "education": {
-            "MODEL_PATH": os.getenv("EDUCATION", ""),
-            "TOKENIZER_NAME": os.getenv("EDUCATION", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("EDUCATION", "Khoa/kompa-spam-filter-education-0625"),
+            "TOKENIZER_NAME": os.getenv("EDUCATION", "Khoa/kompa-spam-filter-education-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/education.json')) if os.path.exists('static/site_id_filter/education.json') else [],
         },
         "logistic_delivery": {
-            "MODEL_PATH": os.getenv("LOGISTIC_DELIVERY", ""),
-            "TOKENIZER_NAME": os.getenv("LOGISTIC_DELIVERY", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("LOGISTIC_DELIVERY", "Khoa/kompa-spam-filter-logistics-delivery-update-0625"),
+            "TOKENIZER_NAME": os.getenv("LOGISTIC_DELIVERY", "Khoa/kompa-spam-filter-logistics-delivery-update-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/logistic_delivery.json')) if os.path.exists('static/site_id_filter/logistic_delivery.json') else [],
         },
         "energy_fuels": {
-            "MODEL_PATH": os.getenv("ENERGY_FUELS", ""),
-            "TOKENIZER_NAME": os.getenv("ENERGY_FUELS", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("ENERGY_FUELS", "Khoa/kompa-spam-filter-energy-fuels-0625"),
+            "TOKENIZER_NAME": os.getenv("ENERGY_FUELS", "Khoa/kompa-spam-filter-energy-fuels-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/energy_fuels.json')) if os.path.exists('static/site_id_filter/energy_fuels.json') else [],
         },
         "fnb": {
-            "MODEL_PATH": os.getenv("FNB", ""),
-            "TOKENIZER_NAME": os.getenv("FNB", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("FNB", "Khoa/kompa-spam-filter-fnb-0625"),
+            "TOKENIZER_NAME": os.getenv("FNB", "Khoa/kompa-spam-filter-fnb-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/fnb.json')) if os.path.exists('static/site_id_filter/fnb.json') else [],
         },
         "investment": {
-            "MODEL_PATH": os.getenv("INVESTMENT", ""),
-            "TOKENIZER_NAME": os.getenv("INVESTMENT", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("INVESTMENT", "Khoa/kompa-spam-filter-investment-0625"),
+            "TOKENIZER_NAME": os.getenv("INVESTMENT", "Khoa/kompa-spam-filter-investment-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/investment.json')) if os.path.exists('static/site_id_filter/investment.json') else [],
         },
         "fmcg": {
-            "MODEL_PATH": os.getenv("FMCG", ""),
-            "TOKENIZER_NAME": os.getenv("FMCG", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("FMCG", "Khoa/kompa-spam-filter-fmcg-0625"),
+            "TOKENIZER_NAME": os.getenv("FMCG", "Khoa/kompa-spam-filter-fmcg-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/fmcg.json')) if os.path.exists('static/site_id_filter/fmcg.json') else [],
         },
         "retail": {
-            "MODEL_PATH": os.getenv("RETAIL", ""),
-            "TOKENIZER_NAME": os.getenv("RETAIL", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("RETAIL", "Khoa/kompa-spam-filter-retail-0625"),
+            "TOKENIZER_NAME": os.getenv("RETAIL", "Khoa/kompa-spam-filter-retail-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/retail.json')) if os.path.exists('static/site_id_filter/retail.json') else [],
         },
         "technology_motorbike_food": {
-            "MODEL_PATH": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", ""),
-            "TOKENIZER_NAME": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", ""),
-            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", ""),
+            "MODEL_PATH": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", "Khoa/kompa-spam-filter-technology-motorbike-food-0625"),
+            "TOKENIZER_NAME": os.getenv("TECHNOLOGY_MOTORBIKE_FOOD", "Khoa/kompa-spam-filter-technology-motorbike-food-0625"),
+            "STOPWORDS_PATH": os.getenv("STOPWORDS_PATH", "stopwords.txt"),
             "FILTER_SITE_IDS": json.load(open('static/site_id_filter/technology_motorbike_food.json')) if os.path.exists('static/site_id_filter/technology_motorbike_food.json') else [],
         }
-
     }
     TRUSTED_SITES: List[str] = ['google.com', 'play.google.com', 'apps.apple.com']
 
@@ -169,8 +169,21 @@ class TextPreprocessor:
 class SpamClassifierModel:
     """Manages the spam classification model and predictions for a specific category."""
     
+    _models: Dict[str, 'SpamClassifierModel'] = {}  # Cache for models
+    _stopwords: Dict[str, Set[str]] = {}  # Cache for stopwords
+
+    @classmethod
+    def get_instance(cls, category: str) -> 'SpamClassifierModel':
+        """Get singleton instance of the model for a category."""
+        if category not in cls._models:
+            cls._models[category] = cls(category)
+        return cls._models[category]
+
     def __init__(self, category: str):
         """Initialize model and tokenizer for the given category."""
+        if category in self._models:
+            return  # Prevent re-initialization
+        
         if category not in Config.CATEGORIES:
             raise ValueError(f"Category {category} not found in configuration.")
         
@@ -178,11 +191,23 @@ class SpamClassifierModel:
         self.config = Config.CATEGORIES[category]
         
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.config["TOKENIZER_NAME"], use_fast=True)
-            self.model = AutoModelForSequenceClassification.from_pretrained(self.config["MODEL_PATH"]).to(Config.DEVICE)
+            # Load stopwords once per category
+            if category not in self._stopwords:
+                with open(self.config["STOPWORDS_PATH"], "r", encoding='utf-8') as f:
+                    self._stopwords[category] = set(line.strip() for line in f)
+            self.stopwords = self._stopwords[category]
+            
+            # Load tokenizer and model with cache
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.config["TOKENIZER_NAME"],
+                use_fast=True,
+                cache_dir=Config.CACHE_DIR
+            )
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                self.config["MODEL_PATH"],
+                cache_dir=Config.CACHE_DIR
+            ).to(Config.DEVICE)
             self.model.eval()
-            with open(self.config["STOPWORDS_PATH"], "r", encoding='utf-8') as f:
-                self.stopwords = set(line.strip() for line in f)
             logger.info(f"Model, tokenizer, and stopwords for category {category} loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load model, tokenizer, or stopwords for category {category}: {e}")
@@ -266,7 +291,7 @@ class SpamClassifier:
     """Main class for spam classification from JSON data with multi-category support."""
     
     def __init__(self, category: str):
-        self.model = SpamClassifierModel(category)
+        self.model = SpamClassifierModel.get_instance(category)
         self.category = category
         self.required_columns = ['Title', 'Content', 'Description', 'Type', 'Topic', 'SiteName', 'SiteId', 'Sentiment']
 

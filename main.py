@@ -4,8 +4,6 @@ from typing import List, Dict
 import json
 import time
 from spam import SpamClassifier
-import uuid
-from functools import lru_cache
 import hashlib
 import logging
 
@@ -40,7 +38,7 @@ class ResultItem(BaseModel):
 class ResponseData(BaseModel):
     processing_time: float
     request_time: float
-    results: Dict
+    results: List[Dict]
 
 class ResponseModel(BaseModel):
     message: str
@@ -65,9 +63,19 @@ class ResultItem(BaseModel):
     spam: bool
     lang: str
 
+# Initialize classifiers for all categories at startup
+CATEGORIES = [
+    "finance", "real_estate", "ewallet", "healthcare_insurance", "ecommerce",
+    "education", "logistic_delivery", "energy_fuels", "fnb", "investment",
+    "fmcg", "retail", "technology_motorbike_food"
+]
+CLASSIFIERS = {category: SpamClassifier(category) for category in CATEGORIES}
+
 def generate_cache_key(request_data: str) -> str:
     """Generate a cache key from request data using SHA-256."""
     return hashlib.sha256(request_data.encode()).hexdigest()
+
+from functools import lru_cache
 
 @lru_cache(maxsize=1000)
 def cached_classify_spam(request_data: str, category: str) -> Dict:
@@ -78,42 +86,18 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
         # Parse input data
         input_data = json.loads(request_data)
         
-        if category == "finance":
-            classifier = SpamClassifier("finance")
-        elif category == "real_estate":
-            classifier = SpamClassifier("real_estate")
-        elif category == "ewallet":
-            classifier = SpamClassifier("ewallet")
-        elif category == "healthcare_insurance":
-            classifier = SpamClassifier("healthcare_insurance")
-        elif category == "ecommerce":
-            classifier = SpamClassifier("ecommerce")
-        elif category == "education":
-            classifier = SpamClassifier("education")
-        elif category == "logistic_delivery":
-            classifier = SpamClassifier("logistic_delivery")
-        elif category == "energy_fuels":
-            classifier = SpamClassifier("energy_fuels")
-        elif category == "fnb":
-            classifier = SpamClassifier("fnb")
-        elif category == "investment":
-            classifier = SpamClassifier("investment")
-        elif category == "fmcg":
-            classifier = SpamClassifier("fmcg")
-        elif category == "retail":
-            classifier = SpamClassifier("retail")
-        elif category == "technology_motorbike_food":
-            classifier = SpamClassifier("technology_motorbike_food")
-        else:
+        # Get classifier for the category
+        if category not in CLASSIFIERS:
             raise HTTPException(status_code=400, detail="Invalid category")
+        classifier = CLASSIFIERS[category]
             
         # Process classification
         processing_start = time.time()
         results = classifier.classify_spam(json_data=input_data)
         processing_time = time.time() - processing_start
         request_time = time.time() - start_time
-        if results: 
-            formatted_results = [
+        
+        formatted_results = [
             ResultItem(
                 content=item.get("Content", ""),
                 description=item.get("Description", ""),
@@ -125,10 +109,10 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
                 title=item.get("Title", ""),
                 topic=item.get("Topic", ""),
                 type=item.get("Type", ""),
-                spam=item.get("spam", ""),
+                spam=item.get("spam", False),
                 lang=item.get("lang", "")
             ).dict() for item in results
-            ]
+        ]
 
         return {
             "message": "Prediction successful",
