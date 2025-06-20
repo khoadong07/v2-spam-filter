@@ -2,3 +2,4 @@
 .env
 vncorenlp.sh
 __pycache__/
+model_cache/

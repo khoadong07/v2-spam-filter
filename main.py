@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 import json
 import time
 from spam import SpamClassifier
@@ -16,6 +16,7 @@ app = FastAPI(title="Spam Classification API", version="1.0.0")
 # Define Pydantic models for input validation
 class Item(BaseModel):
     id: str
+    topic_id: Optional[str]
     topic: str
     title: str
     content: str
@@ -50,6 +51,7 @@ class RequestModel(BaseModel):
     data: List[Item]
 
 class ResultItem(BaseModel):
+    topic_id: Optional[str]
     content: str
     description: str
     id: str
@@ -85,7 +87,7 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
         
         # Parse input data
         input_data = json.loads(request_data)
-        
+        print(input_data)
         # Get classifier for the category
         if category not in CLASSIFIERS:
             raise HTTPException(status_code=400, detail="Invalid category")
@@ -102,6 +104,7 @@ def cached_classify_spam(request_data: str, category: str) -> Dict:
                 content=item.get("Content", ""),
                 description=item.get("Description", ""),
                 id=item.get("Id", ""),
+                topic_id=item.get("topic_id", ""),
                 label=item.get("Label", ""),
                 sentiment=item.get("Sentiment", ""),
                 site_id=item.get("SiteId", ""),
