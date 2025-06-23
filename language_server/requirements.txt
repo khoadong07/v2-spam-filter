@@ -1,0 +1,4 @@
+python-socketio[asyncio_server]
+uvicorn[standard]
+pandas
+langdetect

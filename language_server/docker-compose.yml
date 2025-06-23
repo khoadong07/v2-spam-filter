@@ -1,0 +1,10 @@
+version: '3.9'
+services:
+  language_server:
+    build: .
+    container_name: language_socketio_server
+    ports:
+      - "8988:8000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
