@@ -23,7 +23,6 @@ RUN mkdir -p vncorenlp/models/wordsegmenter && \
 
 COPY requirements.txt .
 
-# Cài đặt các thư viện Python từ requirements.txt
 RUN pip install -r requirements.txt
 
 COPY . .
