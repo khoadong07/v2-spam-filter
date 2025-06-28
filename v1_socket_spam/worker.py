@@ -3,6 +3,15 @@ import redis
 import json
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 
+def truncate_text(text, tokenizer, max_tokens=256):
+    tokens = tokenizer.tokenize(text)
+    if len(tokens) <= max_tokens:
+        return text
+    # Decode lại thành text sau khi truncate
+    truncated_ids = tokenizer.convert_tokens_to_ids(tokens[:max_tokens])
+    return tokenizer.decode(truncated_ids, skip_special_tokens=True)
+
+
 # Redis config
 redis_conn = redis.Redis(host="localhost", port=6379, db=0)
 REDIS_REQUEST_QUEUE = "spam_request_queue"
@@ -21,19 +30,20 @@ CATEGORY_MODEL_MAP = {
 class ModelRegistry:
     def __init__(self):
         self.models = {}
-
+    
     def get_or_load_model(self, category):
         if category not in self.models:
             if category not in CATEGORY_MODEL_MAP:
                 raise ValueError(f"No model configured for category: {category}")
             print(f"🔧 Loading model for category: {category}")
-            model = AutoModelForSequenceClassification.from_pretrained(CATEGORY_MODEL_MAP[category], num_labels=2)
-            tokenizer = AutoTokenizer.from_pretrained(CATEGORY_MODEL_MAP[category], use_fast=False)
+            model_path = CATEGORY_MODEL_MAP[category]
+            model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=2)
+            tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
             classifier = pipeline(
                 "text-classification", model=model, tokenizer=tokenizer,
                 device=-1, return_all_scores=True
             )
-            self.models[category] = classifier
+            self.models[category] = (classifier, tokenizer)
         return self.models[category]
 
 # Registry instance
@@ -57,7 +67,10 @@ while True:
     category = meta.get("category", "")
 
     try:
-        classifier = registry.get_or_load_model(category)
+        classifier, tokenizer = registry.get_or_load_model(category)
+
+        text = truncate_text(text, tokenizer)
+        
         spam_result = classifier(text)[0]
         spam_label = max(spam_result, key=lambda x: x['score'])['label']
         spam_score = max(spam_result, key=lambda x: x['score'])['score']

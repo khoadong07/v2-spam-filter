@@ -1,4 +1,4 @@
-// client.js
+
 const { io } = require("socket.io-client");
 
 const socket = io("http://localhost:5001");
@@ -6,21 +6,21 @@ const socket = io("http://localhost:5001");
 socket.on("connect", () => {
   console.log("✅ Connected to server");
 
-  // Dữ liệu mẫu
   const data = {
-    category: "healthcare",
+    category: "finance",
     data: [
       {
-        id: "1",
-        title: "Nhận ngay 10GB miễn phí",
-        content: "Chương trình khuyến mãi đặc biệt từ nhà mạng",
-        description: "Click vào link để tham gia ngay!"
-      },
-      {
-        id: "2",
-        title: "Thông báo tài khoản",
-        content: "Bạn có hóa đơn cần thanh toán",
-        description: ""
+        id: "63479744980_3642136556718832910",
+        topic: "MCredit",
+        topic_id: "123",
+        title: "",
+        content: "Trong bối cảnh bị mạng xã hội cạnh tranh gay gắt, nhiều chuyên gia cho rằng báo chí cần trở thành nơi để độc giả kiểm chứng thông tin...",
+        description: "",
+        sentiment: "Neutral",
+        site_name: "Threads - blam0_gerard_way_food",
+        site_id: "63479744980",
+        label: "Minigame/ livestream",
+        type: "fbPageComment"
       }
     ]
   };
