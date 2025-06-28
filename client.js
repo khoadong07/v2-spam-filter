@@ -1,7 +1,7 @@
 
 const { io } = require("socket.io-client");
 
-const socket = io("http://localhost:5001");
+const socket = io("http://0.0.0.0:5001");
 
 socket.on("connect", () => {
   console.log("✅ Connected to server");

@@ -1,0 +1,33 @@
+services:
+  redis:
+    image: redis
+    container_name: redis
+  socket-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: socket-server
+    depends_on:
+      - redis
+    ports:
+      - "5001:5001"
+    environment:
+      - TRANSFORMERS_CACHE=/cache
+    volumes:
+      - ./model_cache:/cache
+      - ./app:/app
+    command: python server.py
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker
+    depends_on:
+      - redis
+    environment:
+      - TRANSFORMERS_CACHE=/cache
+    volumes:
+      - ./model_cache:/cache
+      - ./app:/app
+    command: python worker.py
