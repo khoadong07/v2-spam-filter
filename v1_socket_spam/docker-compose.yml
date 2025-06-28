@@ -22,7 +22,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: worker
+    container_name: inference-worker
     depends_on:
       - redis
     environment:
