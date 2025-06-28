@@ -4,3 +4,4 @@ vncorenlp.sh
 __pycache__/
 model_cache/
 .idea/
+node_modules/

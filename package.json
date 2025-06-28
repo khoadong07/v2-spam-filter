@@ -1,0 +1,24 @@
+{
+  "name": "v2-spam-filter",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khoadong07/v2-spam-filter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/khoadong07/v2-spam-filter/issues"
+  },
+  "homepage": "https://github.com/khoadong07/v2-spam-filter#readme",
+  "description": "",
+  "dependencies": {
+    "socket.io-client": "^4.8.1",
+    "uuid": "^11.1.0"
+  }
+}
