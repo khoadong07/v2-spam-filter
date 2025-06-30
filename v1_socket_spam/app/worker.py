@@ -25,7 +25,8 @@ LABEL_MAPPING = {"LABEL_0": "non-spam", "LABEL_1": "spam"}
 CATEGORY_MODEL_MAP = {
     "telecom": "Khoa/kompa-spam-filter-telecomunication-internet-update-0625",
     "finance": "Khoa/kompa-spam-filter-finance-update-0525",
-    "healthcare": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525"
+    "healthcare": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525",
+    "e-commerce": "Khoa/kompa-spam-filter-e-commerce-update-0625",
 }
 
 # Model cache
