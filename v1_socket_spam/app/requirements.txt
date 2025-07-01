@@ -3,3 +3,4 @@ python-socketio[asyncio_client]
 transformers
 torch
 redis
+sentencepiece
