@@ -2,24 +2,16 @@ import redis
 import json
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 
-def truncate_text(text, tokenizer, max_tokens=256):
-    tokens = tokenizer.tokenize(text)
-    if len(tokens) <= max_tokens:
-        return text
-    truncated_ids = tokenizer.convert_tokens_to_ids(tokens[:max_tokens])
-    return tokenizer.decode(truncated_ids, skip_special_tokens=True)
-
-# Redis config (fix host)
+# Redis config
 redis_conn = redis.Redis(
-    host="redis",  # tên service trong docker-compose
+    host="redis",
     port=6379,
     db=0,
     decode_responses=True
 )
+
 REDIS_REQUEST_QUEUE = "spam_request_queue"
 REDIS_RESULT_QUEUE = "spam_result_queue"
-
-LABEL_MAPPING = {"LABEL_0": "non-spam", "LABEL_1": "spam"}
 
 # Mapping mô hình theo category
 CATEGORY_MODEL_MAP = {
@@ -30,40 +22,82 @@ CATEGORY_MODEL_MAP = {
     "ecommerce": "Khoa/kompa-spam-filter-e-commerce-update-0625",
 }
 
-# Model cache
+# Truncate text để giới hạn số tokens
+def truncate_text(text, tokenizer, max_tokens=256):
+    tokens = tokenizer.tokenize(text)
+    if len(tokens) <= max_tokens:
+        return text
+    token_ids = tokenizer.convert_tokens_to_ids(tokens[:max_tokens])
+    return tokenizer.decode(token_ids, skip_special_tokens=True)
+
+# Cache mô hình phân loại spam theo category
 class ModelRegistry:
     def __init__(self):
         self.models = {}
 
-    def get_or_load_model(self, category):
-        if category not in self.models:
-            if category not in CATEGORY_MODEL_MAP:
-                raise ValueError(f"No model configured for category: {category}")
-            print(f"🔧 Loading model for category: {category}")
-            model_path = CATEGORY_MODEL_MAP[category]
-            model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=2)
-            tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
-            classifier = pipeline(
-                "text-classification",
-                model=model,
-                tokenizer=tokenizer,
-                device=-1,
-                return_all_scores=True
-            )
-            self.models[category] = (classifier, tokenizer)
-        return self.models[category]
+    def get(self, category):
+        if category in self.models:
+            return self.models[category]
+        if category not in CATEGORY_MODEL_MAP:
+            raise ValueError(f"❌ No model found for category '{category}'")
 
-# Registry instance
+        print(f"🔧 Loading spam model for category '{category}'")
+        model_path = CATEGORY_MODEL_MAP[category]
+        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=2)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+        classifier = pipeline(
+            "text-classification",
+            model=model,
+            tokenizer=tokenizer,
+            device=0,  # CPU
+            return_all_scores=True
+        )
+        self.models[category] = (classifier, tokenizer)
+        return classifier, tokenizer
+
 registry = ModelRegistry()
 
-# Language classifier (chung)
+# Load language detection pipeline 1 lần
+lang_model = AutoModelForSequenceClassification.from_pretrained("papluca/xlm-roberta-base-language-detection", from_tf=False)
+lang_tokenizer = AutoTokenizer.from_pretrained("papluca/xlm-roberta-base-language-detection", use_fast=False)
 lang_classifier = pipeline(
     "text-classification",
-    model="papluca/xlm-roberta-base-language-detection",
-    device=-1
+    model=lang_model,
+    tokenizer=lang_tokenizer,
+    device=-1,
+    top_k=1
 )
 
-# Vòng lặp worker
+# Hàm inference chính
+def predict_spam_and_language(text, category):
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("⚠️ Invalid input text")
+
+    classifier, tokenizer = registry.get(category)
+    text = truncate_text(text, tokenizer)
+
+    # Spam classification
+    spam_result = classifier(text)
+    if not spam_result or not spam_result[0]:
+        raise ValueError("⚠️ spam_result is empty")
+    top_spam = max(spam_result[0], key=lambda x: x['score'])
+    spam_label = top_spam['label'] == 'LABEL_0' 
+
+    # Language detection
+    lang_result = lang_classifier(text, top_k=1)
+    if isinstance(lang_result, list) and isinstance(lang_result[0], dict):
+        language = lang_result[0].get("label", "unknown")
+    elif isinstance(lang_result[0], list) and isinstance(lang_result[0][0], dict):
+        language = lang_result[0][0].get("label", "unknown")
+    else:
+        language = "unknown"
+
+    return {
+        "spam": spam_label,
+        "lang": language
+    }
+
+# ===== Worker loop =====
 while True:
     try:
         packed = redis_conn.blpop(REDIS_REQUEST_QUEUE, timeout=5)
@@ -72,36 +106,42 @@ while True:
 
         _, payload = packed
         task = json.loads(payload)
-        text = task["text"]
-        meta = task["meta"]
+
+        job_id = task.get("job_id")
+        text = task.get("text", "")
+        meta = task.get("meta", {})
         category = meta.get("category", "")
 
+        print(f"📥 job_id={job_id} | category={category}")
+
         try:
-            classifier, tokenizer = registry.get_or_load_model(category)
-            text = truncate_text(text, tokenizer)
-
-            spam_result = classifier(text)[0]
-            spam_label = max(spam_result, key=lambda x: x['score'])['label']
-            spam_score = max(spam_result, key=lambda x: x['score'])['score']
-
-            lang_result = lang_classifier(text, top_k=1)[0]
-            lang_label = lang_result['label']
-            lang_score = lang_result['score']
+            prediction = predict_spam_and_language(text, category)
 
             result = {
-                "spam_label": LABEL_MAPPING.get(spam_label, spam_label),
-                "spam_score": spam_score,
-                "language": lang_label,
-                "language_score": lang_score
+                "id": meta.get("id", ""),
+                "topic": meta.get("topic", ""),
+                "topic_id": meta.get("topic_id", ""),
+                "title": meta.get("title", ""),
+                "content": meta.get("content", ""),
+                "description": meta.get("description", ""),
+                "sentiment": meta.get("sentiment", ""),
+                "site_name": meta.get("site_name", ""),
+                "site_id": meta.get("site_id", ""),
+                "type": meta.get("type", ""),
+                **prediction
             }
+
+            print(f"✅ job_id={job_id} | spam={result['spam']} | lang={result['lang']}")
 
         except Exception as e:
             result = {"error": str(e)}
+            print(f"❌ job_id={job_id} | Lỗi xử lý: {e}")
+            print(f"📝 Text: {repr(text)}")
 
         redis_conn.rpush(REDIS_RESULT_QUEUE, json.dumps({
-            "job_id": task["job_id"],
+            "job_id": job_id,
             "result": result
         }))
 
     except Exception as e:
-        print(f"❌ Worker error: {e}")
+        print(f"🔥 Worker loop error: {e}")

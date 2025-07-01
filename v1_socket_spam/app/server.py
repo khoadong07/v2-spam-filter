@@ -7,10 +7,10 @@ import uuid
 
 # Redis config
 redis_conn = redis.Redis(
-    host="redis",  # tên service trong docker-compose.yml
+    host="redis",
     port=6379,
     db=0,
-    decode_responses=True  # nhận string thay vì bytes
+    decode_responses=True
 )
 REDIS_REQUEST_QUEUE = "spam_request_queue"
 REDIS_RESULT_QUEUE = "spam_result_queue"
@@ -75,6 +75,15 @@ async def predict(sid, data):
         job_id = await enqueue_request(text, {
             "id": item.get("id"),
             "topic": item.get("topic", ""),
+            "topic_id": item.get("topic_id", ""),
+            "title": item.get("title", ""),
+            "content": item.get("content", ""),
+            "description": item.get("description", ""),
+            "sentiment": item.get("sentiment", ""),
+            "site_name": item.get("site_name", ""),
+            "site_id": item.get("site_id", ""),
+            "type": item.get("type", ""),
+            "label": item.get("label", ""),      
             "category": category
         })
 
