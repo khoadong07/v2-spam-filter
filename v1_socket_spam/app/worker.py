@@ -23,10 +23,11 @@ LABEL_MAPPING = {"LABEL_0": "non-spam", "LABEL_1": "spam"}
 
 # Mapping mô hình theo category
 CATEGORY_MODEL_MAP = {
-    "telecom": "Khoa/kompa-spam-filter-telecomunication-internet-update-0625",
     "finance": "Khoa/kompa-spam-filter-finance-update-0525",
-    "healthcare": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525",
-    "e-commerce": "Khoa/kompa-spam-filter-e-commerce-update-0625",
+    "real_estate": "Khoa/kompa-spam-filter-real-estate-update-0525",
+    "ewallet": "Khoa/kompa-spam-filter-e-wallet-update-0625",
+    "healthcare_insurance": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525",
+    "ecommerce": "Khoa/kompa-spam-filter-e-commerce-update-0625",
 }
 
 # Model cache
