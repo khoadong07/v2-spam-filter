@@ -94,7 +94,7 @@ def predict_spam_and_language(text, category):
 
     return {
         "spam": spam_label,
-        "lang": language
+        "lang": "vietnamese" if language == 'vi' else language
     }
 
 # ===== Worker loop =====
