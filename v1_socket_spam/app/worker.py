@@ -1,26 +1,29 @@
 import asyncio
 import json
+import os
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
-import redis.asyncio as redis  # ✅ dùng redis.asyncio
+from huggingface_hub import snapshot_download
+import redis.asyncio as redis
 
 # Redis config
 REDIS_REQUEST_QUEUE = "spam_request_queue"
 REDIS_RESULT_QUEUE = "spam_result_queue"
 
-# Model mapping theo category
+# Local model paths
+LOCAL_MODEL_DIR = "./models"
 CATEGORY_MODEL_MAP = {
-    "healthcare_insurance": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525",
-    "energy_fuels": "Khoa/kompa-spam-filter-energy-fuels-update-0625",
-    "electronic": "Khoa/kompa-spam-filter-electronic-update-0625",
-    "fmcg": "Khoa/kompa-spam-filter-fmcg-update-0625",
-    "fnb": "Khoa/kompa-spam-filter-fnb-update-0625",
-    "logistic_delivery": "Khoa/kompa-spam-filter-logistics-delivery-update-0625",
-    "bank": "Khoa/kompa-spam-filter-bank-update-0625",
-    "finance": "Khoa/kompa-spam-filter-finance-update-0525",
-    "ewallet": "Khoa/kompa-spam-filter-e-wallet-update-0625",
-    "investment": "Khoa/kompa-spam-filter-investment-update-0625",
-    "real_estate": "Khoa/kompa-spam-filter-real-estate-update-0525",
-    "education": "Khoa/kompa-spam-filter-education-update-0625",
+    "healthcare_insurance": {"repo_id": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-healthcare-insurance-update-0525")},
+    "energy_fuels": {"repo_id": "Khoa/kompa-spam-filter-energy-fuels-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-energy-fuels-update-0625")},
+    "electronic": {"repo_id": "Khoa/kompa-spam-filter-electronic-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-electronic-update-0625")},
+    "fmcg": {"repo_id": "Khoa/kompa-spam-filter-fmcg-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-fmcg-update-0625")},
+    "fnb": {"repo_id": "Khoa/kompa-spam-filter-fnb-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-fnb-update-0625")},
+    "logistic_delivery": {"repo_id": "Khoa/kompa-spam-filter-logistics-delivery-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-logistics-delivery-update-0625")},
+    "bank": {"repo_id": "Khoa/kompa-spam-filter-bank-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-bank-update-0625")},
+    "finance": {"repo_id": "Khoa/kompa-spam-filter-finance-update-0525", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-finance-update-0525")},
+    "ewallet": {"repo_id": "Khoa/kompa-spam-filter-e-wallet-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-e-wallet-update-0625")},
+    "investment": {"repo_id": "Khoa/kompa-spam-filter-investment-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-investment-update-0625")},
+    "real_estate": {"repo_id": "Khoa/kompa-spam-filter-real-estate-update-0525", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-real-estate-update-0525")},
+    "education": {"repo_id": "Khoa/kompa-spam-filter-education-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-education-update-0625")},
 }
 
 def truncate_text(text, tokenizer, max_tokens=256):
@@ -41,9 +44,16 @@ class ModelRegistry:
             raise ValueError(f"❌ No model found for category '{category}'")
 
         print(f"🔧 Loading spam model for category '{category}'")
-        model_path = CATEGORY_MODEL_MAP[category]
-        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=2)
-        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+        model_info = CATEGORY_MODEL_MAP[category]
+        model_path = model_info["local_path"]
+
+        # Tải model từ Hugging Face nếu chưa có
+        if not os.path.exists(model_path):
+            print(f"📥 Downloading model for category '{category}' from {model_info['repo_id']}")
+            snapshot_download(repo_id=model_info["repo_id"], local_dir=model_path, local_dir_use_symlinks=False)
+
+        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=2, local_files_only=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False, local_files_only=True)
         classifier = pipeline(
             "text-classification",
             model=model,
@@ -56,8 +66,14 @@ class ModelRegistry:
 
 registry = ModelRegistry()
 
-lang_model = AutoModelForSequenceClassification.from_pretrained("papluca/xlm-roberta-base-language-detection")
-lang_tokenizer = AutoTokenizer.from_pretrained("papluca/xlm-roberta-base-language-detection", use_fast=False)
+# Tải model ngôn ngữ
+LANG_MODEL_PATH = os.path.join(LOCAL_MODEL_DIR, "xlm-roberta-base-language-detection")
+if not os.path.exists(LANG_MODEL_PATH):
+    print(f"📥 Downloading language model from papluca/xlm-roberta-base-language-detection")
+    snapshot_download(repo_id="papluca/xlm-roberta-base-language-detection", local_dir=LANG_MODEL_PATH, local_dir_use_symlinks=False)
+
+lang_model = AutoModelForSequenceClassification.from_pretrained(LANG_MODEL_PATH, local_files_only=True)
+lang_tokenizer = AutoTokenizer.from_pretrained(LANG_MODEL_PATH, use_fast=False, local_files_only=True)
 lang_classifier = pipeline(
     "text-classification",
     model=lang_model,
@@ -82,7 +98,6 @@ def predict_spam_and_language(text, category):
         "lang": None
     }
 
-# ===== Xử lý từng task =====
 async def handle_task(redis_conn, task, semaphore):
     async with semaphore:
         job_id = task.get("job_id")
@@ -121,7 +136,6 @@ async def handle_task(redis_conn, task, semaphore):
             "result": result
         }))
 
-# ===== Main worker loop =====
 async def worker_loop(concurrency=5):
     redis_conn = redis.Redis(host="redis", port=6379, decode_responses=True)
     semaphore = asyncio.Semaphore(concurrency)
@@ -136,7 +150,6 @@ async def worker_loop(concurrency=5):
             _, payload = packed
             task = json.loads(payload)
 
-            # Gửi xử lý vào handle_task
             asyncio.create_task(handle_task(redis_conn, task, semaphore))
 
         except Exception as e:
