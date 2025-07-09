@@ -33,4 +33,4 @@ services:
       - ./app:/app
     command: python worker.py
     deploy:
-      replicas: 1
+      replicas: 8
