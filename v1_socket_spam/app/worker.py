@@ -107,7 +107,7 @@ def predict_spam_and_language(text, category):
 # ===== Worker loop =====
 while True:
     try:
-        packed = redis_conn.blpop(REDIS_REQUEST_QUEUE, timeout=5)
+        packed = redis_conn.blpop(REDIS_REQUEST_QUEUE, timeout=20)
         if not packed:
             continue
 
