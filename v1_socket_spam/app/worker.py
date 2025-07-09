@@ -81,17 +81,17 @@ def predict_spam_and_language(text, category):
     top_spam = max(spam_result[0], key=lambda x: x['score'])
     spam_label = top_spam['label'] == 'LABEL_0'
 
-    # lang_result = lang_classifier(text, top_k=1)
-    # if isinstance(lang_result[0], dict):
-    #     language = lang_result[0].get("label", "unknown")
-    # elif isinstance(lang_result[0], list):
-    #     language = lang_result[0][0].get("label", "unknown")
-    # else:
-    #     language = "unknown"
+    lang_result = lang_classifier(text, top_k=1)
+    if isinstance(lang_result[0], dict):
+        language = lang_result[0].get("label", "unknown")
+    elif isinstance(lang_result[0], list):
+        language = lang_result[0][0].get("label", "unknown")
+    else:
+        language = "unknown"
 
     return {
         "spam": spam_label,
-        "lang": None
+        "lang": "vietnamese" if language == 'vi' else language
     }
 
 # ===== Worker loop (async) =====
