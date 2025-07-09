@@ -15,6 +15,9 @@ REDIS_RESULT_QUEUE = "spam_result_queue"
 
 # Mapping mô hình theo category
 CATEGORY_MODEL_MAP = {
+    "healthcare_insurance": "Khoa/kompa-spam-filter-healthcare-insurance-update-0525",
+    "energy_fuels": "Khoa/kompa-spam-filter-energy-fuels-update-0625",
+    "electronic": "Khoa/kompa-spam-filter-electronic-update-0625",
     "fmcg": "Khoa/kompa-spam-filter-fmcg-update-0625",
     "fnb": "Khoa/kompa-spam-filter-fnb-update-0625",
     "logistic_delivery": "Khoa/kompa-spam-filter-logistics-delivery-update-0625",
@@ -23,10 +26,7 @@ CATEGORY_MODEL_MAP = {
     "ewallet": "Khoa/kompa-spam-filter-e-wallet-update-0625",
     "investment": "Khoa/kompa-spam-filter-investment-update-0625",
     "real_estate": "Khoa/kompa-spam-filter-real-estate-update-0525",
-    "technology_motorbike_food": "Khoa/kompa-spam-filter-technology-motorbike-food-delivery-update-0625",
     "education": "Khoa/kompa-spam-filter-education-update-0625",
-    "ecommerce": "Khoa/kompa-spam-filter-e-commerce-update-0625",
-    "technology": "Khoa/kompa-spam-filter-software-technology-update-0625",
 }
 
 # Truncate text để giới hạn số tokens
