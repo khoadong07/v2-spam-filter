@@ -4,3 +4,4 @@ transformers
 torch
 redis
 sentencepiece
+aioredis

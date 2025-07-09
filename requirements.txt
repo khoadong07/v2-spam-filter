@@ -10,3 +10,4 @@ fastapi
 streamlit
 openpyxl
 sentencepiece
+aioredis
