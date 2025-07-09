@@ -22,11 +22,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    depends_on:
-      - redis
     environment:
       - TRANSFORMERS_CACHE=/cache
     volumes:
       - ./model_cache:/cache
       - ./app:/app
     command: python worker.py
+    deploy:
+      replicas: 8

@@ -1,59 +1,120 @@
 const { io } = require("socket.io-client");
+const TARGET_URL = "http://0.0.0.0:5001"; // Thay bằng địa chỉ server thực tế
 
-const TARGET_URL = "http://0.0.0.0:5001"; // Thay bằng địa chỉ thật nếu khác
+// Tạo dữ liệu test với nhiều item
+const generateTestData = (numItems) => ({
+  category: "healthcare_insurance",
+  data: Array.from({ length: numItems }, (_, i) => ({
+    id: `test_${i}_${Date.now()}`,
+    topic: "MCredit",
+    topic_id: `123_${i}`,
+    title: `Test Title ${i}`,
+    content: `Trong bối cảnh bị mạng xã hội cạnh tranh gay gắt, nhiều chuyên gia cho rằng báo chí cần trở thành nơi để độc giả kiểm chứng thông tin. Nội dung test ${i}.`,
+    description: `Description for test ${i}`,
+    sentiment: "Neutral",
+    site_name: "Threads - test",
+    site_id: `63479744980_${i}`,
+    label: "Minigame/livestream",
+    type: "fbPageComment",
+  })),
+});
 
-// Tạo jobId ngẫu nhiên
-const jobId = `job_${Date.now()}`;
-
-// Tạo dữ liệu test
-const testData = {
-  category: "real_estate",
-  data: [
-    {
-      id: "12321321321321",
-      topic: "MCredit",
-      topic_id: "123",
-      title: "",
-      content:
-        "Trong bối cảnh bị mạng xã hội cạnh tranh gay gắt, nhiều chuyên gia cho rằng báo chí cần trở thành nơi để độc giả kiểm chứng thông tin, cần nâng cao chất lượng. Tại diễn đàn Báo chí Việt Nam trong kỷ nguyên mới: Tầm nhìn kiến tạo không gian phát triển chiều 19/6, Thứ trưởng Văn hóa Thể thao và Du lịch Lê Hải Bình đánh giá báo chí thế giới đã vận động qua nhiều giai đoạn, sang thiên niên kỷ này đã phát triển rất nhanh,",
-      description: "",
-      sentiment: "Neutral",
-      site_name: "Threads - blam0_gerard_way_food",
-      site_id: "63479744980",
-      label: "Minigame/ livestream",
-      type: "fbPageComment"
-    }
-  ]
+// Hàm đo thời gian phản hồi
+const measureLatency = () => {
+  const start = Date.now();
+  return () => Date.now() - start;
 };
 
-// Kết nối tới socket server
-const socket = io(TARGET_URL, {
-  transports: ["websocket"],
-  reconnection: false,
-});
+// Hàm test một client
+const testSingleClient = async (numItems) => {
+  return new Promise((resolve, reject) => {
+    const socket = io(TARGET_URL, {
+      transports: ["websocket"],
+      reconnection: false,
+      timeout: 60000, // Timeout 60s
+    });
 
-// Khi kết nối thành công
-socket.on("connect", () => {
-  console.log("✅ Connected to server");
+    const measure = measureLatency();
 
-  console.log("📤 Sending test request...");
-  socket.emit("predict", testData);
-});
+    socket.on("connect", () => {
+      console.log(`✅ Client connected`);
+      socket.emit("predict", generateTestData(numItems));
+    });
 
-// Khi nhận được kết quả
-socket.on("result", (data) => {
-  console.log("📥 Received result:");
-  console.dir(data, { depth: null });
+    socket.on("result", (data) => {
+      const latency = measure();
+      console.log(`📥 Received result in ${latency}ms`);
+      console.dir(data, { depth: null });
+      socket.disconnect();
+      resolve({ latency, result: data });
+    });
 
-  socket.disconnect();
-});
+    socket.on("connect_error", (err) => {
+      console.error(`❌ Connection error: ${err.message}`);
+      reject(err);
+    });
 
-// Khi có lỗi kết nối
-socket.on("connect_error", (err) => {
-  console.error("❌ Connection error:", err.message);
-});
+    socket.on("disconnect", () => {
+      console.log(`🔌 Client disconnected`);
+    });
+  });
+};
 
-// Khi bị ngắt kết nối
-socket.on("disconnect", () => {
-  console.log("🔌 Disconnected from server");
-});
+// Hàm test nhiều client đồng thời
+const testConcurrentClients = async (numClients, numItemsPerClient) => {
+  console.log(`🚀 Testing ${numClients} concurrent clients with ${numItemsPerClient} items each...`);
+  const results = [];
+  const start = Date.now();
+
+  const promises = Array.from({ length: numClients }, () =>
+    testSingleClient(numItemsPerClient)
+  );
+
+  try {
+    const responses = await Promise.allSettled(promises);
+    responses.forEach((response, i) => {
+      if (response.status === "fulfilled") {
+        results.push({
+          client: i + 1,
+          latency: response.value.latency,
+          success: true,
+          result: response.value.result,
+        });
+      } else {
+        results.push({
+          client: i + 1,
+          latency: null,
+          success: false,
+          error: response.reason.message,
+        });
+      }
+    });
+
+    const totalTime = Date.now() - start;
+    const successCount = results.filter((r) => r.success).length;
+    const avgLatency =
+      results
+        .filter((r) => r.success)
+        .reduce((sum, r) => sum + r.latency, 0) / successCount || 0;
+
+    console.log("\n📊 Test Summary:");
+    console.log(`Total time: ${totalTime}ms`);
+    console.log(`Successful clients: ${successCount}/${numClients}`);
+    console.log(`Average latency: ${avgLatency.toFixed(2)}ms`);
+    console.log(`Error rate: ${((numClients - successCount) / numClients * 100).toFixed(2)}%`);
+
+    return results;
+  } catch (err) {
+    console.error(`🔥 Test failed: ${err.message}`);
+    return [];
+  }
+};
+
+// Chạy test
+(async () => {
+  // Test với 10 client, mỗi client gửi 5 item
+  await testConcurrentClients(100, 5);
+
+  // Test với tải lớn hơn: 50 client, mỗi client gửi 10 item
+  // await testConcurrentClients(50, 10);
+})();

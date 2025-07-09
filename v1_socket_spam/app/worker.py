@@ -1,7 +1,7 @@
 import asyncio
 import json
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
-import aioredis
+import redis.asyncio as redis  # ✅ dùng redis.asyncio
 
 # Redis config
 REDIS_REQUEST_QUEUE = "spam_request_queue"
@@ -30,7 +30,6 @@ def truncate_text(text, tokenizer, max_tokens=256):
     token_ids = tokenizer.convert_tokens_to_ids(tokens[:max_tokens])
     return tokenizer.decode(token_ids, skip_special_tokens=True)
 
-# Model registry cache
 class ModelRegistry:
     def __init__(self):
         self.models = {}
@@ -55,7 +54,6 @@ class ModelRegistry:
         self.models[category] = (classifier, tokenizer)
         return classifier, tokenizer
 
-# Init model cache và language detector
 registry = ModelRegistry()
 
 lang_model = AutoModelForSequenceClassification.from_pretrained("papluca/xlm-roberta-base-language-detection")
@@ -76,31 +74,61 @@ def predict_spam_and_language(text, category):
     text = truncate_text(text, tokenizer)
 
     spam_result = classifier(text)
-    if not spam_result or not spam_result[0]:
-        raise ValueError("⚠️ spam_result is empty")
     top_spam = max(spam_result[0], key=lambda x: x['score'])
     spam_label = top_spam['label'] == 'LABEL_0'
 
-    lang_result = lang_classifier(text, top_k=1)
-    if isinstance(lang_result[0], dict):
-        language = lang_result[0].get("label", "unknown")
-    elif isinstance(lang_result[0], list):
-        language = lang_result[0][0].get("label", "unknown")
-    else:
-        language = "unknown"
-
     return {
         "spam": spam_label,
-        "lang": "vietnamese" if language == 'vi' else language
+        "lang": None
     }
 
-# ===== Worker loop (async) =====
-async def worker_loop():
-    redis = await aioredis.from_url("redis://redis:6379", decode_responses=True)
+# ===== Xử lý từng task =====
+async def handle_task(redis_conn, task, semaphore):
+    async with semaphore:
+        job_id = task.get("job_id")
+        text = task.get("text", "")
+        meta = task.get("meta", {})
+        category = meta.get("category", "")
+
+        print(f"📥 job_id={job_id} | category={category}")
+
+        try:
+            prediction = await asyncio.to_thread(predict_spam_and_language, text, category)
+
+            result = {
+                "id": meta.get("id", ""),
+                "topic": meta.get("topic", ""),
+                "topic_id": meta.get("topic_id", ""),
+                "title": meta.get("title", ""),
+                "content": meta.get("content", ""),
+                "description": meta.get("description", ""),
+                "sentiment": meta.get("sentiment", ""),
+                "site_name": meta.get("site_name", ""),
+                "site_id": meta.get("site_id", ""),
+                "type": meta.get("type", ""),
+                **prediction
+            }
+
+            print(f"✅ job_id={job_id} | spam={result['spam']} | lang={result['lang']}")
+
+        except Exception as e:
+            result = {"error": str(e)}
+            print(f"❌ job_id={job_id} | Error: {e}")
+            print(f"📝 Text: {repr(text)}")
+
+        await redis_conn.rpush(REDIS_RESULT_QUEUE, json.dumps({
+            "job_id": job_id,
+            "result": result
+        }))
+
+# ===== Main worker loop =====
+async def worker_loop(concurrency=5):
+    redis_conn = redis.Redis(host="redis", port=6379, decode_responses=True)
+    semaphore = asyncio.Semaphore(concurrency)
 
     while True:
         try:
-            packed = await redis.blpop(REDIS_REQUEST_QUEUE, timeout=10)
+            packed = await redis_conn.blpop(REDIS_REQUEST_QUEUE, timeout=10)
             if not packed:
                 await asyncio.sleep(0.1)
                 continue
@@ -108,46 +136,12 @@ async def worker_loop():
             _, payload = packed
             task = json.loads(payload)
 
-            job_id = task.get("job_id")
-            text = task.get("text", "")
-            meta = task.get("meta", {})
-            category = meta.get("category", "")
-
-            print(f"📥 job_id={job_id} | category={category}")
-
-            try:
-                prediction = await asyncio.to_thread(predict_spam_and_language, text, category)
-
-                result = {
-                    "id": meta.get("id", ""),
-                    "topic": meta.get("topic", ""),
-                    "topic_id": meta.get("topic_id", ""),
-                    "title": meta.get("title", ""),
-                    "content": meta.get("content", ""),
-                    "description": meta.get("description", ""),
-                    "sentiment": meta.get("sentiment", ""),
-                    "site_name": meta.get("site_name", ""),
-                    "site_id": meta.get("site_id", ""),
-                    "type": meta.get("type", ""),
-                    **prediction
-                }
-
-                print(f"✅ job_id={job_id} | spam={result['spam']} | lang={result['lang']}")
-
-            except Exception as e:
-                result = {"error": str(e)}
-                print(f"❌ job_id={job_id} | Lỗi xử lý: {e}")
-                print(f"📝 Text: {repr(text)}")
-
-            await redis.rpush(REDIS_RESULT_QUEUE, json.dumps({
-                "job_id": job_id,
-                "result": result
-            }))
+            # Gửi xử lý vào handle_task
+            asyncio.create_task(handle_task(redis_conn, task, semaphore))
 
         except Exception as e:
             print(f"🔥 Worker loop error: {e}")
             await asyncio.sleep(1)
 
-# ===== Main Entrypoint =====
 if __name__ == "__main__":
-    asyncio.run(worker_loop())
+    asyncio.run(worker_loop(concurrency=5))
