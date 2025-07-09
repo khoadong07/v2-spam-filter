@@ -1,13 +1,13 @@
 const { io } = require("socket.io-client");
 
-const TARGET_URL = "http://0.0.0.0:5001"; // Thay bằng địa chỉ thật nếu khác
+const TARGET_URL = "http://148.113.218.248:5001"; // Thay bằng địa chỉ thật nếu khác
 
 // Tạo jobId ngẫu nhiên
 const jobId = `job_${Date.now()}`;
 
 // Tạo dữ liệu test
 const testData = {
-  category: "real_estate",
+  category: "retail",
   data: [
     {
       id: "12321321321321",
