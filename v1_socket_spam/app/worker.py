@@ -136,6 +136,7 @@ while True:
                 "site_name": meta.get("site_name", ""),
                 "site_id": meta.get("site_id", ""),
                 "type": meta.get("type", ""),
+                "category": meta.get("category", ""),
                 **prediction
             }
 
