@@ -118,7 +118,7 @@ lang_classifier = pipeline(
     "text-classification",
     model=lang_model,
     tokenizer=lang_tokenizer,
-    device=-1,
+    device=0,
     top_k=1
 )
 
@@ -131,7 +131,7 @@ def predict_spam_and_language(text, category):
 
     spam_result = classifier(text)
     top_spam = max(spam_result[0], key=lambda x: x['score'])
-    spam_label = top_spam['label'] == 'LABEL_0'
+    spam_label = top_spam['label'] == 'LABEL_1'
 
     return {
         "spam": spam_label,
