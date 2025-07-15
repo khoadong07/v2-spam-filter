@@ -31,7 +31,7 @@ CATEGORY_MODEL_MAP = {
 }   
 
 # Truncate text để giới hạn số tokens
-def truncate_text(text, tokenizer, max_tokens=256):
+def truncate_text(text, tokenizer, max_tokens=250):
     tokens = tokenizer.tokenize(text)
     if len(tokens) <= max_tokens:
         return text
