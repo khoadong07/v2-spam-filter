@@ -26,7 +26,7 @@ CATEGORY_MODEL_MAP = {
     "education": {"repo_id": "Khoa/kompa-spam-filter-education-update-0625", "local_path": os.path.join(LOCAL_MODEL_DIR, "kompa-spam-filter-education-update-0625")},
 }
 
-def truncate_text(text, tokenizer, max_tokens=256):
+def truncate_text(text, tokenizer, max_tokens=250):
     tokens = tokenizer.tokenize(text)
     if len(tokens) <= max_tokens:
         return text
